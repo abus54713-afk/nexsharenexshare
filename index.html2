@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NexShare Global - Luxury Investment Platform</title>
+
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDK (v9 Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #050814;
+            --bg-card: #0d1527;
+            --bg-card-border: rgba(212, 175, 55, 0.25);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(212, 175, 55, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(15, 23, 42, 0.8) 0%, transparent 50%);
+            background-attachment: fixed;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .font-cinzel { font-family: 'Cinzel', serif; }
+
+        .gold-gradient-text {
+            background: linear-gradient(135deg, #fff3a8 0%, #d4af37 50%, #aa7c11 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gold-gradient-bg {
+            background: linear-gradient(135deg, #fce055 0%, #d4af37 50%, #9e740e 100%);
+            color: #050814;
+        }
+
+        .gold-glass-card {
+            background: rgba(13, 21, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--bg-card-border);
+            border-radius: 1rem;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #050814; }
+        ::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; }
+
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 22s linear infinite;
+        }
+        .animate-marquee:hover { animation-play-state: paused; }
+    </style>
+</head>
+<body class="min-h-screen pb-24 text-slate-100 flex flex-col items-center">
+
+    <div class="w-full max-w-md md:max-w-xl flex flex-col min-h-screen shadow-2xl relative border-x border-slate-800/60 bg-[#070c1a]">
+        
+        <!-- Header -->
+        <header class="sticky top-0 z-40 bg-[#0a1022]/90 backdrop-blur-md border-b border-amber-500/20 px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl gold-gradient-bg flex items-center justify-center shadow-lg shadow-amber-500/20">
+                    <i class="fa-solid fa-chart-line text-slate-950 text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-cinzel text-lg font-bold tracking-wider gold-gradient-text leading-none">NEXSHARE</h1>
+                    <span class="text-[9px] text-amber-400/80 font-semibold tracking-widest block uppercase">GLOBAL INVESTMENT</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <div id="headerBalanceBox" class="hidden flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full">
+                    <i class="fa-solid fa-wallet text-amber-400 text-xs"></i>
+                    <span id="userBalanceText" class="font-bold text-amber-300 text-xs">৳0.00</span>
+                </div>
+                <button id="authTriggerBtn" onclick="openAuthModal('login')" class="gold-gradient-bg px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-md hover:brightness-110 transition">
+                    <i class="fa-solid fa-right-to-bracket mr-1"></i> লগইন
+                </button>
+            </div>
+        </header>
+
+        <!-- Marquee Notice -->
+        <div class="bg-amber-500/10 border-b border-amber-500/20 py-1.5 px-3 overflow-hidden text-xs text-amber-300/90 flex items-center gap-2">
+            <span class="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded uppercase shrink-0">LATEST</span>
+            <div class="overflow-hidden w-full relative">
+                <div id="marqueeNoticeText" class="animate-marquee font-medium">
+                    👋 NexShare Global-এ আপনাকে স্বাগতম! শেয়ারে বিনিয়োগ করুন ও দৈনিক নিশ্চিত লাভ অর্জন করুন।
+                </div>
+            </div>
+        </div>
+
+        <main class="flex-1 p-4 space-y-4">
+
+            <!-- TAB 1: MARKET SHARES -->
+            <section id="tabShares" class="space-y-4">
+                <!-- User Profile Card -->
+                <div id="userOverviewCard" class="hidden gold-glass-card p-4 space-y-3 relative overflow-hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-xs text-slate-400">স্বাগতম,</span>
+                            <h3 id="userPhoneDisplay" class="font-bold text-base text-slate-100">01700000000</h3>
+                            <span class="text-[11px] bg-slate-800 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 mt-1 inline-block">
+                                রেফারেল: <strong id="userRefCodeDisplay" class="text-white">...</strong>
+                            </span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[11px] text-slate-400 block">মোট ওয়ালেট ব্যালেন্স</span>
+                            <span id="userMainBalance" class="text-xl font-extrabold gold-gradient-text">৳0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Claim Daily Login Bonus -->
+                    <div class="pt-2 border-t border-slate-800 flex justify-between items-center">
+                        <div class="text-xs">
+                            <span class="font-semibold text-amber-300 block">দৈনিক লগইন বোনাস</span>
+                            <span class="text-[10px] text-slate-400">প্রতিদিন ক্লেইম করুন ৳৫.০০</span>
+                        </div>
+                        <button onclick="claimDailyBonus()" class="gold-gradient-bg px-4 py-1.5 rounded-lg text-xs font-extrabold shadow-lg shadow-amber-500/20 active:scale-95 transition">
+                            <i class="fa-solid fa-gift mr-1"></i> Claim ৳5.00
+                        </button>
+                    </div>
+                </div>
+
+                <!-- My Active Shares & Daily Income Claim Section -->
+                <div id="mySharesSection" class="hidden space-y-3">
+                    <h3 class="font-bold text-sm text-emerald-400 flex items-center gap-2">
+                        <i class="fa-solid fa-sack-dollar text-amber-400"></i> আপনার একটিভ শেয়ারের দৈনিক লাভ ক্লেইম
+                    </h3>
+                    <div id="mySharesContainer" class="space-y-2"></div>
+                </div>
+
+                <!-- Gift Code Redeem Card -->
+                <div class="gold-glass-card p-3.5 space-y-2">
+                    <span class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-ticket text-amber-400"></i> গিফট কোড ক্লেইম করুন
+                    </span>
+                    <div class="flex gap-2">
+                        <input type="text" id="giftCodeInput" placeholder="কোড লিখুন (যেমন: NEX50)" class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2 text-xs text-amber-300 font-mono outline-none uppercase">
+                        <button onclick="redeemGiftCode()" class="gold-gradient-bg px-4 py-2 rounded-lg text-xs font-bold shrink-0 hover:brightness-110 active:scale-95 transition">
+                            ক্লেইম
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Plans Grid -->
+                <div class="space-y-3">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-amber-400"></i> শেয়ার মার্কেট প্যাকেজসমূহ
+                    </h3>
+                    <div id="plansContainer" class="grid grid-cols-1 gap-3.5"></div>
+                </div>
+            </section>
+
+            <!-- TAB 2: DEPOSIT -->
+            <section id="tabDeposit" class="hidden space-y-4">
+                <div class="gold-glass-card p-4 space-y-4">
+                    <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
+                        <i class="fa-solid fa-wallet text-amber-400 text-lg"></i>
+                        <div>
+                            <h2 class="font-bold text-sm text-slate-100">টাকা ডিপোজিট করুন</h2>
+                            <p class="text-[11px] text-slate-400">বিকাশ বা নগদ থেকে সেন্ড মানি করুন</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/90 border border-amber-500/30 rounded-xl p-3 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-400">অ্যাডমিন পেমেন্ট নম্বর (Personal):</span>
+                            <span class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">bKash / Nagad</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                            <span id="adminPayNumber" class="font-mono font-bold text-amber-400 text-base">01700000000</span>
+                            <button onclick="copyText('adminPayNumber')" class="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2.5 py-1 rounded transition active:scale-95">
+                                <i class="fa-regular fa-copy"></i> কপি
+                            </button>
+                        </div>
+                    </div>
+
+                    <form onsubmit="submitDeposit(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">পেমেন্ট গেটওয়ে</label>
+                            <select id="depGateway" class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                                <option value="bKash">bKash (বিকাশ)</option>
+                                <option value="Nagad">Nagad (নগদ)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">পরিমাণ (৳)</label>
+                            <input type="number" id="depAmount" min="200" placeholder="সর্বনিম্ন ৳২০০" required class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">প্রেরক নম্বর (Sender Number)</label>
+                            <input type="text" id="depSender" placeholder="017xxxxxxxx" required class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">ট্রানজেকশন ID (TrxID)</label>
+                            <input type="text" id="depTrx" placeholder="8N76AGX9..." required class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full gold-gradient-bg py-2.5 rounded-lg font-bold text-xs shadow-lg shadow-amber-500/20 mt-2 hover:brightness-110 active:scale-95 transition">
+                            <i class="fa-solid fa-paper-plane mr-1"></i> ডিপোজিট নিশ্চিত করুন
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 3: WITHDRAW -->
+            <section id="tabWithdraw" class="hidden space-y-4">
+                <div class="gold-glass-card p-4 space-y-4">
+                    <div class="flex items-center gap-2 border-b border-slate-800 pb-3">
+                        <i class="fa-solid fa-money-bill-transfer text-amber-400 text-lg"></i>
+                        <div>
+                            <h2 class="font-bold text-sm text-slate-100">টাকা উত্তোলন (Withdraw)</h2>
+                            <p class="text-[11px] text-slate-400">আপনার অর্জিত টাকা সহজেই বিকাশ বা নগদে নিন</p>
+                        </div>
+                    </div>
+
+                    <form onsubmit="submitWithdraw(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">পেমেন্ট মেথড</label>
+                            <select id="wdGateway" class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                                <option value="bKash">bKash (বিকাশ)</option>
+                                <option value="Nagad">Nagad (নগদ)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">পরিমাণ (৳) - মিনিমাম ৳৩০০</label>
+                            <input type="number" id="wdAmount" min="300" placeholder="৩০০" required class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-300 mb-1">আপনার পার্সোনাল অ্যাকাউন্ট নম্বর</label>
+                            <input type="text" id="wdNumber" placeholder="017xxxxxxxx" required class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full gold-gradient-bg py-2.5 rounded-lg font-bold text-xs shadow-lg shadow-amber-500/20 mt-2 hover:brightness-110 active:scale-95 transition">
+                            <i class="fa-solid fa-hand-holding-dollar mr-1"></i> উইথড্র রিকোয়েস্ট পাঠান
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 4: REFERRAL -->
+            <section id="tabReferral" class="hidden space-y-4">
+                <div class="gold-glass-card p-4 space-y-3">
+                    <h3 class="font-bold text-sm text-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-users text-amber-400"></i> ৩-জেনারেশন টিম কমিশন
+                    </h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        আপনার রেফারেল লিংক শেয়ার করুন। রেফার করা ইউজার <strong class="text-amber-400">প্রথম ডিপোজিট করলেই</strong> সাথে সাথে ৩ লেভেল থেকে কমিশন আপনার অ্যাকাউন্টে জমা হবে!
+                    </p>
+
+                    <div class="bg-slate-950 border border-amber-500/30 p-2.5 rounded-xl space-y-2">
+                        <span class="text-[10px] text-slate-400 block">আপনার ইউনিক রেফারেল লিংক:</span>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="myRefLinkInput" readonly value="লগইন প্রয়োজন..." class="w-full bg-slate-900 text-xs text-amber-300 p-2 rounded border border-slate-800 font-mono outline-none select-all">
+                            <button onclick="copyRefLink()" class="gold-gradient-bg px-3 py-2 rounded text-xs font-bold shrink-0 hover:brightness-110 active:scale-95 transition">
+                                <i class="fa-regular fa-copy"></i> কপি
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-center pt-2">
+                        <div class="bg-slate-900/90 border border-amber-500/20 p-2.5 rounded-xl">
+                            <span class="text-[10px] text-slate-400 block">১ম জেনারেশন</span>
+                            <span class="font-extrabold text-amber-400 text-sm">10%</span>
+                        </div>
+                        <div class="bg-slate-900/90 border border-amber-500/20 p-2.5 rounded-xl">
+                            <span class="text-[10px] text-slate-400 block">২য় জেনারেশন</span>
+                            <span class="font-extrabold text-amber-400 text-sm">5%</span>
+                        </div>
+                        <div class="bg-slate-900/90 border border-amber-500/20 p-2.5 rounded-xl">
+                            <span class="text-[10px] text-slate-400 block">৩য় জেনারেশন</span>
+                            <span class="font-extrabold text-amber-400 text-sm">2.5%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: PROFILE & HISTORY -->
+            <section id="tabProfile" class="hidden space-y-4">
+                <div id="profileDetailsBox" class="gold-glass-card p-4 space-y-3"></div>
+                <div class="gold-glass-card p-4 space-y-3">
+                    <h3 class="font-bold text-xs text-amber-300">সাম্প্রতিক ট্রানজেকশনসমূহ</h3>
+                    <div id="transactionHistoryList" class="space-y-2 max-h-60 overflow-y-auto text-xs"></div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Fixed Bottom Nav -->
+        <nav class="fixed bottom-0 max-w-md md:max-w-xl w-full bg-[#0a1022]/95 backdrop-blur-md border-t border-amber-500/20 px-2 py-2 flex justify-around items-center z-40">
+            <button onclick="switchTab('shares')" class="nav-btn text-amber-400 transition" id="nav-shares">
+                <i class="fa-solid fa-chart-pie block text-base text-center"></i>
+                <span class="text-[10px] font-semibold">মার্কেট</span>
+            </button>
+            <button onclick="switchTab('deposit')" class="nav-btn text-slate-400 hover:text-amber-300 transition" id="nav-deposit">
+                <i class="fa-solid fa-wallet block text-base text-center"></i>
+                <span class="text-[10px] font-semibold">ডিপোজিট</span>
+            </button>
+            <button onclick="switchTab('withdraw')" class="nav-btn text-slate-400 hover:text-amber-300 transition" id="nav-withdraw">
+                <i class="fa-solid fa-hand-holding-dollar block text-base text-center"></i>
+                <span class="text-[10px] font-semibold">উইথড্র</span>
+            </button>
+            <button onclick="switchTab('referral')" class="nav-btn text-slate-400 hover:text-amber-300 transition" id="nav-referral">
+                <i class="fa-solid fa-users block text-base text-center"></i>
+                <span class="text-[10px] font-semibold">রেফারেল</span>
+            </button>
+            <button onclick="switchTab('profile')" class="nav-btn text-slate-400 hover:text-amber-300 transition" id="nav-profile">
+                <i class="fa-solid fa-user block text-base text-center"></i>
+                <span class="text-[10px] font-semibold">প্রোফাইল</span>
+            </button>
+        </nav>
+
+        <footer class="text-center py-3 text-[10px] text-slate-500 border-t border-slate-900/80">
+            © 2026 NexShare Global. All Rights Reserved.
+        </footer>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="gold-glass-card max-w-sm w-full p-5 space-y-4 relative border border-amber-500/40">
+            <button onclick="closeAuthModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="text-center space-y-1">
+                <h2 id="authModalTitle" class="font-cinzel font-extrabold text-lg gold-gradient-text">ইউজার লগইন</h2>
+                <p class="text-xs text-slate-400">NexShare Global এ প্রবেশ করুন</p>
+            </div>
+
+            <form onsubmit="submitAuth(event)" class="space-y-3">
+                <input type="hidden" id="authMode" value="login">
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">মোবাইল নম্বর</label>
+                    <input type="tel" id="authPhone" placeholder="017xxxxxxxx" required class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">পাসওয়ার্ড</label>
+                    <input type="password" id="authPass" placeholder="••••••••" required class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-slate-100 outline-none">
+                </div>
+                <div id="refCodeGroup" class="hidden">
+                    <label class="block text-xs text-slate-300 mb-1">রেফারেল কোড (ঐচ্ছিক)</label>
+                    <input type="text" id="authRefCode" placeholder="NEX12345" class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg p-2.5 text-xs text-amber-300 font-mono outline-none">
+                </div>
+                <button type="submit" id="authSubmitBtn" class="w-full gold-gradient-bg py-2.5 rounded-lg font-bold text-xs shadow-lg shadow-amber-500/20 mt-2 transition">
+                    লগইন করুন
+                </button>
+            </form>
+
+            <div class="text-center border-t border-slate-800 pt-3">
+                <button id="toggleAuthModeBtn" onclick="toggleAuthMode()" class="text-xs text-amber-400 hover:underline">
+                    একাউন্ট নেই? নতুন সাইন-আপ করুন
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Firebase Config ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCdCFqtmOdLp5zVAdjOow9Qq_7Lt7Z7wh0",
+            authDomain: "app1-fbd12.firebaseapp.com",
+            databaseURL: "https://app1-fbd12-default-rtdb.firebaseio.com",
+            projectId: "app1-fbd12",
+            storageBucket: "app1-fbd12.firebasestorage.app",
+            messagingSenderId: "5576314669",
+            appId: "1:5576314669:web:53cb24fab2af2694108da4"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentUser = JSON.parse(localStorage.getItem('nex_user_data')) || null;
+        let globalPackages = {};
+
+        window.addEventListener('DOMContentLoaded', () => {
+            parseReferralFromURL();
+            listenToRealtimeSettings();
+            renderPlans();
+
+            if (currentUser) {
+                syncUserData(currentUser.phone);
+            } else {
+                updateUIForLoggedOut();
+            }
+        });
+
+        function parseReferralFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const ref = params.get('ref');
+            if (ref) {
+                localStorage.setItem('nex_referrer_code', ref.toUpperCase());
+                document.getElementById('authRefCode').value = ref.toUpperCase();
+            }
+        }
+
+        function listenToRealtimeSettings() {
+            db.ref('settings').on('value', (snap) => {
+                const data = snap.val() || {};
+                if (data.notice) document.getElementById('marqueeNoticeText').innerText = data.notice;
+                if (data.payNumber) document.getElementById('adminPayNumber').innerText = data.payNumber;
+            });
+        }
+
+        function syncUserData(phone) {
+            db.ref('users/' + phone).on('value', (snap) => {
+                if (snap.exists()) {
+                    currentUser = snap.val();
+                    localStorage.setItem('nex_user_data', JSON.stringify(currentUser));
+                    
+                    if (currentUser.isBlocked) {
+                        alert('আপনার অ্যাকাউন্টটি সাময়িকভাবে স্থগিত (Blocked) করা হয়েছে!');
+                        logout();
+                        return;
+                    }
+
+                    updateUIForLoggedIn();
+                    loadMyActiveShares();
+                    loadTransactions();
+                } else {
+                    logout();
+                }
+            });
+        }
+
+        function updateUIForLoggedIn() {
+            document.getElementById('authTriggerBtn').classList.add('hidden');
+            document.getElementById('headerBalanceBox').classList.remove('hidden');
+            document.getElementById('userOverviewCard').classList.remove('hidden');
+
+            document.getElementById('userBalanceText').innerText = `৳${(currentUser.balance || 0).toFixed(2)}`;
+            document.getElementById('userMainBalance').innerText = `৳${(currentUser.balance || 0).toFixed(2)}`;
+            document.getElementById('userPhoneDisplay').innerText = currentUser.phone;
+            document.getElementById('userRefCodeDisplay').innerText = currentUser.refCode;
+
+            const baseUrl = window.location.href.split('?')[0];
+            document.getElementById('myRefLinkInput').value = `${baseUrl}?ref=${currentUser.refCode}`;
+
+            renderProfileTab();
+        }
+
+        function updateUIForLoggedOut() {
+            document.getElementById('authTriggerBtn').classList.remove('hidden');
+            document.getElementById('headerBalanceBox').classList.add('hidden');
+            document.getElementById('userOverviewCard').classList.add('hidden');
+            document.getElementById('mySharesSection').classList.add('hidden');
+            renderProfileTab();
+        }
+
+        function renderPlans() {
+            db.ref('packages').on('value', snap => {
+                const container = document.getElementById('plansContainer');
+                if (!snap.exists()) {
+                    container.innerHTML = '<p class="text-xs text-slate-500 text-center">কোনো প্যাকেজ পাওয়া যায়নি।</p>';
+                    return;
+                }
+
+                globalPackages = snap.val() || {};
+                let html = '';
+                snap.forEach(child => {
+                    const p = child.val();
+                    html += `
+                        <div class="gold-glass-card p-3.5 flex gap-3.5 items-center">
+                            <img src="${p.img}" class="w-20 h-20 rounded-xl object-cover border border-amber-500/30 shrink-0">
+                            <div class="flex-1 space-y-1">
+                                <h4 class="font-bold text-xs text-amber-200">${p.name}</h4>
+                                <div class="text-[11px] text-slate-300 space-y-0.5">
+                                    <div>মূল্য: <span class="font-extrabold text-amber-400">৳${p.price}</span></div>
+                                    <div>দৈনিক লাভ: <span class="font-bold text-emerald-400">৳${p.daily}</span></div>
+                                    <div>মেয়াদ: <span class="text-slate-400">${p.validity} দিন</span></div>
+                                </div>
+                                <button onclick="buyPlan('${child.key}', '${p.name}', ${p.price}, ${p.daily}, ${p.validity})" class="w-full gold-gradient-bg py-1.5 rounded-lg text-xs font-bold mt-1 shadow-md">
+                                    শেয়ার কিনুন
+                                </button>
+                            </div>
+                        </div>`;
+                });
+                container.innerHTML = html;
+                if (currentUser) loadMyActiveShares();
+            });
+        }
+
+        // Fixed Daily Share Income Claiming Engine
+        function loadMyActiveShares() {
+            if (!currentUser) return;
+            db.ref('my_shares/' + currentUser.phone).on('value', snap => {
+                const section = document.getElementById('mySharesSection');
+                const container = document.getElementById('mySharesContainer');
+
+                if (!snap.exists()) {
+                    section.classList.add('hidden');
+                    return;
+                }
+
+                section.classList.remove('hidden');
+                let html = '';
+                const today = new Date().toDateString();
+
+                snap.forEach(child => {
+                    const share = child.val();
+                    const shareKey = child.key;
+                    
+                    // Fallback resolver if daily is undefined in old share records
+                    let dailyVal = parseFloat(share.daily);
+                    if (isNaN(dailyVal) || dailyVal <= 0) {
+                        if (share.planId && globalPackages[share.planId]) {
+                            dailyVal = parseFloat(globalPackages[share.planId].daily) || 0;
+                        } else if (share.name && share.name.includes("Luxury Real Estate")) {
+                            dailyVal = 800;
+                        } else if (share.name && share.name.includes("Tech Park")) {
+                            dailyVal = 130;
+                        } else if (share.name && share.name.includes("Green Energy")) {
+                            dailyVal = 40;
+                        } else if (share.name && share.name.includes("Mining Pool")) {
+                            dailyVal = 320;
+                        } else {
+                            dailyVal = 50;
+                        }
+                    }
+
+                    const isClaimedToday = share.lastClaimDate === today;
+
+                    html += `
+                        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center text-xs">
+                            <div>
+                                <h5 class="font-bold text-amber-300 text-xs">${share.name}</h5>
+                                <span class="text-[10px] text-slate-400">দৈনিক লাভ: <strong class="text-emerald-400">৳${dailyVal}</strong></span>
+                            </div>
+                            <button onclick="claimShareIncome('${shareKey}', ${dailyVal})" class="px-3 py-1.5 rounded-lg text-xs font-bold ${isClaimedToday ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'gold-gradient-bg shadow-md active:scale-95'}" ${isClaimedToday ? 'disabled' : ''}>
+                                ${isClaimedToday ? '<i class="fa-solid fa-check text-emerald-400 mr-1"></i> ক্লেইমড' : '<i class="fa-solid fa-hand-holding-dollar mr-1"></i> লাভ ক্লেইম (৳' + dailyVal + ')'}
+                            </button>
+                        </div>`;
+                });
+                container.innerHTML = html;
+            });
+        }
+
+        function claimShareIncome(shareKey, dailyIncome) {
+            if (!currentUser) return openAuthModal('login');
+            const today = new Date().toDateString();
+
+            db.ref('my_shares/' + currentUser.phone + '/' + shareKey).once('value', snap => {
+                if (snap.exists()) {
+                    const share = snap.val();
+                    if (share.lastClaimDate === today) {
+                        alert('আজকের শেয়ার লাভ ইতিমধ্যেই ক্লেইম করেছেন!');
+                        return;
+                    }
+
+                    db.ref('users/' + currentUser.phone).update({
+                        balance: (currentUser.balance || 0) + dailyIncome
+                    });
+
+                    db.ref('my_shares/' + currentUser.phone + '/' + shareKey).update({
+                        daily: dailyIncome,
+                        lastClaimDate: today
+                    });
+
+                    db.ref('transactions').push({
+                        user: currentUser.phone,
+                        type: 'share_income',
+                        amount: dailyIncome,
+                        details: `${share.name} দৈনিক ক্লেইম`,
+                        status: 'approved',
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    alert(`অভিনন্দন! আপনার ওয়ালেটে ৳${dailyIncome} লাভ যুক্ত হয়েছে।`);
+                }
+            });
+        }
+
+        function buyPlan(planId, name, price, daily, validity) {
+            if (!currentUser) return openAuthModal('login');
+            if ((currentUser.balance || 0) < price) {
+                alert('পর্যাপ্ত ব্যালেন্স নেই! ডিপোজিট করুন।');
+                switchTab('deposit');
+                return;
+            }
+
+            if (confirm(`৳${price} দিয়ে "${name}" শেয়ারটি কিনতে চান?`)) {
+                db.ref('users/' + currentUser.phone).update({ balance: currentUser.balance - price });
+                
+                db.ref('my_shares/' + currentUser.phone).push({
+                    planId, name, price, daily, validity,
+                    boughtAt: Date.now(),
+                    lastClaimDate: ''
+                });
+
+                db.ref('transactions').push({
+                    user: currentUser.phone,
+                    type: 'share_buy',
+                    amount: price,
+                    details: `${name} শেয়ার ক্রয়`,
+                    status: 'approved',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                alert('শেয়ার কেনা সফল হয়েছে! এখন প্রতিদিন "লাভ ক্লেইম" করতে পারবেন।');
+            }
+        }
+
+        function switchTab(tabName) {
+            ['shares', 'deposit', 'withdraw', 'referral', 'profile'].forEach(t => {
+                document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tabName);
+                const btn = document.getElementById('nav-' + t);
+                btn.className = (t === tabName) ? "nav-btn text-amber-400 transition" : "nav-btn text-slate-400 hover:text-amber-300 transition";
+            });
+        }
+
+        function openAuthModal(mode = 'login') {
+            document.getElementById('authModal').classList.remove('hidden');
+            setAuthMode(mode);
+        }
+
+        function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
+
+        function toggleAuthMode() {
+            const currentMode = document.getElementById('authMode').value;
+            setAuthMode(currentMode === 'login' ? 'signup' : 'login');
+        }
+
+        function setAuthMode(mode) {
+            document.getElementById('authMode').value = mode;
+            document.getElementById('authModalTitle').innerText = mode === 'signup' ? 'নতুন একাউন্ট খুলুন' : 'ইউজার লগইন';
+            document.getElementById('authSubmitBtn').innerText = mode === 'signup' ? 'রেজিস্ট্রেশন করুন' : 'লগইন করুন';
+            document.getElementById('toggleAuthModeBtn').innerText = mode === 'signup' ? 'ইতিমধ্যে একাউন্ট আছে? লগইন করুন' : 'একাউন্ট নেই? নতুন সাইন-আপ করুন';
+            document.getElementById('refCodeGroup').classList.toggle('hidden', mode !== 'signup');
+            
+            const savedRef = localStorage.getItem('nex_referrer_code');
+            if (savedRef) {
+                document.getElementById('authRefCode').value = savedRef;
+            }
+        }
+
+        function submitAuth(e) {
+            e.preventDefault();
+            const mode = document.getElementById('authMode').value;
+            const phone = document.getElementById('authPhone').value.trim();
+            const pass = document.getElementById('authPass').value.trim();
+            const refCodeInput = document.getElementById('authRefCode').value.trim().toUpperCase();
+
+            const userRef = db.ref('users/' + phone);
+
+            if (mode === 'signup') {
+                userRef.once('value', snap => {
+                    if (snap.exists()) {
+                        alert('এই নম্বরে ইতিমধ্যে অ্যাকাউন্ট আছে!');
+                    } else {
+                        const newRefCode = 'NEX' + Math.floor(10000 + Math.random() * 90000);
+                        const newUser = {
+                            phone: phone, pass: pass, balance: 0, refCode: newRefCode,
+                            referredBy: refCodeInput || localStorage.getItem('nex_referrer_code') || '',
+                            hasDeposited: false, isBlocked: false, createdAt: Date.now()
+                        };
+                        userRef.set(newUser).then(() => {
+                            alert('একাউন্ট তৈরি সফল হয়েছে!');
+                            closeAuthModal();
+                            syncUserData(phone);
+                        });
+                    }
+                });
+            } else {
+                userRef.once('value', snap => {
+                    if (snap.exists() && snap.val().pass === pass) {
+                        if (snap.val().isBlocked) {
+                            alert('আপনার অ্যাকাউন্টটি ব্লক করা আছে!');
+                            return;
+                        }
+                        alert('লগইন সফল হয়েছে!');
+                        closeAuthModal();
+                        syncUserData(phone);
+                    } else {
+                        alert('ভুল ফোন নম্বর বা পাসওয়ার্ড!');
+                    }
+                });
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('nex_user_data');
+            updateUIForLoggedOut();
+        }
+
+        function claimDailyBonus() {
+            if (!currentUser) return openAuthModal('login');
+            const today = new Date().toDateString();
+            if (currentUser.lastBonusDate === today) return alert('আজকের বোনাস ইতিমধ্যেই নিয়েছেন!');
+
+            db.ref('users/' + currentUser.phone).update({
+                balance: (currentUser.balance || 0) + 5,
+                lastBonusDate: today
+            }).then(() => alert('৳৫.০০ দৈনিক বোনাস যুক্ত হয়েছে!'));
+        }
+
+        function redeemGiftCode() {
+            if (!currentUser) return openAuthModal('login');
+            const code = document.getElementById('giftCodeInput').value.trim().toUpperCase();
+            if (!code) return alert('গিফট কোড লিখুন!');
+
+            db.ref('gift_codes/' + code).once('value', snap => {
+                if (snap.exists()) {
+                    const amount = snap.val().amount;
+                    db.ref('users/' + currentUser.phone).update({
+                        balance: (currentUser.balance || 0) + amount
+                    });
+                    db.ref('gift_codes/' + code).remove();
+                    alert(`অভিনন্দন! আপনি ৳${amount} গিফট বোনাস পেয়েছেন!`);
+                    document.getElementById('giftCodeInput').value = '';
+                } else {
+                    alert('অবৈধ অথবা মেয়াদোত্তীর্ণ গিফট কোড!');
+                }
+            });
+        }
+
+        function submitDeposit(e) {
+            e.preventDefault();
+            if (!currentUser) return openAuthModal('login');
+
+            const gateway = document.getElementById('depGateway').value;
+            const amount = parseFloat(document.getElementById('depAmount').value);
+            const sender = document.getElementById('depSender').value.trim();
+            const trx = document.getElementById('depTrx').value.trim();
+
+            db.ref('deposits').push({
+                user: currentUser.phone, gateway, amount, sender, trx, status: 'pending', timestamp: Date.now()
+            }).then(() => {
+                alert('ডিপোজিট রিকোয়েস্ট সফল হয়েছে!');
+                document.getElementById('depAmount').value = '';
+                document.getElementById('depTrx').value = '';
+            });
+        }
+
+        function submitWithdraw(e) {
+            e.preventDefault();
+            if (!currentUser) return openAuthModal('login');
+
+            const gateway = document.getElementById('wdGateway').value;
+            const amount = parseFloat(document.getElementById('wdAmount').value);
+            const number = document.getElementById('wdNumber').value.trim();
+
+            if (amount > (currentUser.balance || 0)) return alert('পর্যাপ্ত ব্যালেন্স নেই!');
+
+            db.ref('users/' + currentUser.phone).update({ balance: currentUser.balance - amount });
+
+            db.ref('withdraws').push({
+                user: currentUser.phone, gateway, amount, number, status: 'pending', timestamp: Date.now()
+            }).then(() => {
+                alert('উইথড্র রিকোয়েস্ট পাঠানো হয়েছে!');
+                document.getElementById('wdAmount').value = '';
+            });
+        }
+
+        function loadTransactions() {
+            db.ref('transactions').orderByChild('user').equalTo(currentUser.phone).on('value', snap => {
+                const box = document.getElementById('transactionHistoryList');
+                if (!snap.exists()) return box.innerHTML = '<p class="text-slate-500 text-center">কোনো লেনদেন নেই।</p>';
+
+                let html = '';
+                snap.forEach(c => {
+                    const t = c.val();
+                    html += `
+                        <div class="bg-slate-900/80 p-2 rounded border border-slate-800 flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-slate-200 block">${t.type.toUpperCase()}</span>
+                                <span class="text-[10px] text-slate-400">${t.details || ''}</span>
+                            </div>
+                            <span class="font-bold ${t.type.includes('withdraw') ? 'text-rose-400' : 'text-emerald-400'}">৳${t.amount}</span>
+                        </div>`;
+                });
+                box.innerHTML = html;
+            });
+        }
+
+        function renderProfileTab() {
+            const container = document.getElementById('profileDetailsBox');
+            if (!currentUser) {
+                container.innerHTML = `
+                    <div class="text-center py-4 space-y-2">
+                        <p class="text-xs text-slate-400">তথ্য দেখতে লগইন করুন</p>
+                        <button onclick="openAuthModal('login')" class="gold-gradient-bg px-4 py-1.5 rounded text-xs font-bold">লগইন</button>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-100">${currentUser.phone}</h3>
+                        <span class="text-[10px] text-amber-400">রেফার কোড: ${currentUser.refCode}</span>
+                    </div>
+                    <button onclick="logout()" class="bg-red-500/20 text-red-400 px-3 py-1 rounded text-xs font-bold">লগআউট</button>
+                </div>`;
+        }
+
+        function copyText(id) {
+            const textToCopy = document.getElementById(id).innerText.trim();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    alert('কপি করা হয়েছে: ' + textToCopy);
+                });
+            } else {
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textArea);
+                alert('কপি করা হয়েছে: ' + textToCopy);
+            }
+        }
+
+        function copyRefLink() {
+            const input = document.getElementById('myRefLinkInput');
+            if (!currentUser) {
+                alert('রেফারেল লিংক পেতে প্রথমে লগইন করুন!');
+                return;
+            }
+            input.select();
+            input.setSelectionRange(0, 99999);
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(input.value).then(() => {
+                    alert('রেফারেল লিংক কপি করা হয়েছে!');
+                });
+            } else {
+                document.execCommand("copy");
+                alert('রেফারেল লিংক কপি করা হয়েছে!');
+            }
+        }
+    </script>
+</body>
+      </html>
